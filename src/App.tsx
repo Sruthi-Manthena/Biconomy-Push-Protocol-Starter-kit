@@ -4,7 +4,7 @@ import { Route, Routes, Link } from 'react-router-dom';
 import { useWeb3React } from "@web3-react/core";
 import { Web3Context, EnvContext, SocketContext } from './context';
 import { ReactComponent as PushLogo }  from './assets/pushLogo.svg';
-import { ConnectButton } from './components/connect';
+import { ConnectButton } from './components/connect/index';
 import { Checkbox } from './components/checkbox';
 import Dropdown from './components/dropdown';
 import { useSDKSocket } from './hooks';

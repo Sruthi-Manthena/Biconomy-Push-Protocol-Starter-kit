@@ -1,61 +1,15 @@
-import { useEffect } from "react"
-import styled from "styled-components"
-import { InjectedConnector } from '@web3-react/injected-connector'
-import { useWeb3React } from "@web3-react/core"
-import { BiconomySmartAccount, BiconomySmartAccountConfig } from "@biconomy/account"
-import { IBundler, Bundler } from '@biconomy/bundler'
-import { IPaymaster, BiconomyPaymaster } from '@biconomy/paymaster'
-import { DEFAULT_ENTRYPOINT_ADDRESS } from "@biconomy/account"
-import { ethers } from "ethers";
-import { useBiconomy } from "@biconomy/react";
+import React, { useEffect, useState } from "react";
+import styled from "styled-components";
+import { IBundler, Bundler } from '@biconomy/bundler';
+import { BiconomySmartAccount, BiconomySmartAccountConfig, DEFAULT_ENTRYPOINT_ADDRESS } from "@biconomy/account";
+import { ChainId } from "@biconomy/core-types";
+import { providers, Wallet, ethers } from "ethers";
+import { Buffer } from 'buffer';
+(window as any).Buffer = Buffer;
 
 
-
-
-const bundler: IBundler = new Bundler({
-  bundlerUrl: '', // you can get this value from biconomy dashboard.     
-  chainId: 137, 
-  entryPointAddress: DEFAULT_ENTRYPOINT_ADDRESS,
-})
-
-const paymaster: IPaymaster = new BiconomyPaymaster({
-  paymasterUrl: '' // you can get this value from biconomy dashboard.
-})
-// Note that paymaster and bundler are optional. You can choose to create new instances of this later and make account API use 
-const biconomySmartAccountConfig: BiconomySmartAccountConfig = {
-  signer: wallet.getSigner(), // enter your actual instance of the wallet
-  chainId: 137,  
-  rpcUrl: '',
-  // paymaster: paymaster, // check the README.md section of Paymaster package
-  // bundler: bundler, // check the README.md section of Bundler package
-}
-
-const biconomyAccount = new BiconomySmartAccount(biconomySmartAccountConfig)
-
-async function initializeBiconomySmartAccount() {
-  const biconomySmartAccount = await biconomyAccount.init();
-}
-
-initializeBiconomySmartAccount();
-
-const transaction = {
-to: '0x85B51B068bF0fefFEFD817882a14f6F5BDF7fF2E',
-data: '0x',
-value: ethers.utils.parseEther('0.1'),
-}
-
-
-async function buildPartialUserOp() {
-  const biconomySmartAccount = await biconomyAccount.init();
-  const partialUserOp = await biconomySmartAccount.buildUserOp([transaction]);
-  // Use the partialUserOp here or perform additional operations
-}
-
-buildPartialUserOp();
-
-const biconomy = useBiconomy();
-const connector = biconomy.connector;
-
+const provider = new providers.JsonRpcProvider("https://rpc.ankr.com/polygon_mumbai");
+const wallet = new Wallet(process.env.PRIVATE_KEY || "", provider);
 
 const ConnectWrapper = styled.div`
   display: flex;
@@ -90,52 +44,68 @@ const StyledButton = styled.button`
 const Connect = styled(StyledButton)`
   color: rgb(255, 255, 255);
   background: rgb(103, 76, 159);
-`
+`;
 
 const Disconnect = styled(StyledButton)`
   color: rgb(255, 255, 255);
   background: rgb(226, 8, 128);
-`
+`;
 
 const ConnectButton = () => {
-  //const { active, account, activate, deactivate, chainId } = useWeb3React()
-  const { state, dispatch } = useBiconomy();
-  const { walletAddress: account, chainId } = state;
-  const { activate, deactivate } = dispatch;
-  const active = !!account;
-  
+  const [connected, setConnected] = useState(false);
+  const [account, setAccount] = useState("");
+  const [chainId, setChainId] = useState<number | undefined>(undefined);
 
-async function connect() {
-  try {
-    await activate();
-    localStorage.setItem('isWalletConnected', 'true');
-  } catch (ex) {
-    console.log(ex);
-  }
-}
+  const biconomySmartAccountConfig: BiconomySmartAccountConfig = {
+    signer: wallet,
+    chainId: ChainId.POLYGON_MUMBAI,
+    bundler: new Bundler({
+      bundlerUrl: "https://bundler.biconomy.io/api/v2/80001/abc",
+      chainId: ChainId.POLYGON_MUMBAI,
+      entryPointAddress: DEFAULT_ENTRYPOINT_ADDRESS,
+    }),
+  };
 
-async function disconnect() {
-  try {
-    await deactivate();
-    localStorage.setItem('isWalletConnected', 'false');
-  } catch (ex) {
-    console.log(ex);
-  }
-}
+  useEffect(() => {
+    const connectToBiconomy = async () => {
+      try {
+        const biconomyAccount = new BiconomySmartAccount(biconomySmartAccountConfig);
+        const biconomySmartAccount = await biconomyAccount.init();
+        setAccount(biconomySmartAccount.owner);
+        setChainId(80001); // ChainId for Polygon Mumbai
+        setConnected(true);
+        localStorage.setItem("isWalletConnected", "true");
+      } catch (ex) {
+        console.error(ex);
+      }
+    };
+
+    const connectWalletOnPageLoad = async () => {
+      if (localStorage?.getItem("isWalletConnected") === "true") {
+        connectToBiconomy();
+      }
+    };
+
+    connectWalletOnPageLoad();
+  }, []);
+
+  const disconnect = () => {
+    setConnected(false);
+    localStorage.setItem("isWalletConnected", "false");
+  };
 
   return (
     <ConnectWrapper>
-      {active ? (
+      {connected ? (
         <>
           <p>Connected with <span className="account">{account}</span></p>
-          {chainId ? <p className="network">{chainId}</p> : null}
-          <Disconnect onClick={disconnect}>Disconnect Wallet</Disconnect>
+          {chainId && <p className="network">POLYGON_MUMBAI</p>}
+          <Disconnect onClick={disconnect}>Disconnect Biconomy Smart Account</Disconnect>
         </>
       ) : (
-        <Connect onClick={connect}>Connect to Biconomy Wallet</Connect>
+        <Connect onClick={() => setConnected(true)}>Connect to Biconomy Smart Account</Connect>
       )}
     </ConnectWrapper>
   );
-      }
-
-export default ConnectButton;
+};
+export { ConnectButton };
